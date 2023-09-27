@@ -5,8 +5,14 @@ CREATE TABLE app_user (
 );
 
 CREATE TABLE state (
-    id SERIAL PRIMARY KEY,
+    id CHAR(3) PRIMARY KEY,
     name VARCHAR(30) UNIQUE
+);
+
+CREATE TABLE municipality (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(60),
+    state_id CHAR(3) REFERENCES state(id)
 );
 
 CREATE TABLE business_type (
@@ -16,11 +22,11 @@ CREATE TABLE business_type (
 
 CREATE TABLE address (
     id SERIAL PRIMARY KEY,
-    state_id INT REFERENCES state(id),
     street_name VARCHAR(60),
     district_name VARCHAR(60),
     street_number VARCHAR(10),
-    zip_code SMALLINT
+    zip_code CHAR(5),
+    municipality_id INTEGER REFERENCES municipality(id)
 );
 
 CREATE TABLE business (

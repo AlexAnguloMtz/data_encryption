@@ -11,7 +11,7 @@ namespace encrypt_server.Services
 
         public AuthService(UserRepository repository)
         {
-            this.repository = repository ?? throw new ArgumentNullException(nameof(repository)); 
+            this.repository = repository ?? throw new ArgumentNullException(nameof(repository));
         }
 
         public async Task<AppUserResponse> RegisterUser(RegistrationRequest request)
@@ -32,6 +32,7 @@ namespace encrypt_server.Services
             {
                 throw new UnauthorizedException();
             }
+            return "";
         }
 
         private AppUser MapToUser(RegistrationRequest request)
