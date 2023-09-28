@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Npgsql;
 using encrypt_server.Models;
 using System.Data;
+using System.Transactions;
 
 namespace encrypt_server.Repositories
 {
@@ -132,6 +133,58 @@ namespace encrypt_server.Repositories
             return null;
         }
 
+        public async Task DeleteById(int id)
+        {
+            using var connection = new NpgsqlConnection(connectionString);
+            await connection.OpenAsync();
+
+            using var transaction = connection.BeginTransaction();
+            try
+            {
+                using var deleteEmployeeCommand = new NpgsqlCommand();
+                deleteEmployeeCommand.Connection = connection;
+                deleteEmployeeCommand.Transaction = transaction;
+                deleteEmployeeCommand.CommandType = CommandType.Text;
+                deleteEmployeeCommand.CommandText = "DELETE FROM employee WHERE id = @Id RETURNING address_id";
+
+                deleteEmployeeCommand.Parameters.AddWithValue("@Id", id);
+
+                var addressId = await GetAddressIdAsync(deleteEmployeeCommand);
+
+                if (addressId.HasValue)
+                {
+                    using var deleteAddressCommand = new NpgsqlCommand();
+                    deleteAddressCommand.Connection = connection;
+                    deleteAddressCommand.Transaction = transaction;
+                    deleteAddressCommand.CommandType = CommandType.Text;
+                    deleteAddressCommand.CommandText = "DELETE FROM address WHERE address_id = @AddressId";
+
+                    deleteAddressCommand.Parameters.AddWithValue("@AddressId", addressId);
+
+                    await deleteAddressCommand.ExecuteNonQueryAsync();
+                }
+
+                transaction.Commit();
+            }
+            catch (Exception)
+            {
+                transaction.Rollback();
+                throw;
+            }
+        }
+
+        private async Task<int?> GetAddressIdAsync(NpgsqlCommand command)
+        {
+            using (var reader = await command.ExecuteReaderAsync())
+            {
+                if (await reader.ReadAsync())
+                {
+                    return reader.GetInt32(reader.GetOrdinal("address_id"));
+                }
+                return null;
+            }
+        }
+
         private Employee ReadEmployee(NpgsqlDataReader reader)
         {
             return new Employee
@@ -154,5 +207,7 @@ namespace encrypt_server.Repositories
                 StreetNumber = reader.GetString(reader.GetOrdinal("street_number")),
             };
         }
+
+        
     }
 }

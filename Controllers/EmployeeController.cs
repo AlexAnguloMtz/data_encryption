@@ -71,6 +71,19 @@ namespace encrypt_server.Controllers
             }
         }
 
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            try
+            {
+                await service.DeleteById(id);
+                return Ok();
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, "Could not delete employee");
+            }
+        }
 
     }
 

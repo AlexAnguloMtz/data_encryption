@@ -37,6 +37,12 @@ namespace encrypt_server.Services
             await Task.CompletedTask;
         }
 
+        public async Task DeleteById(int id)
+        {
+            await repository.DeleteById(id);
+            await Task.CompletedTask;
+        }
+
         private Employee MapToEntity(SaveEmployeeRequest request)
         {
             return new Employee
@@ -62,6 +68,5 @@ namespace encrypt_server.Services
             };
         }
 
-       
     }
 }
