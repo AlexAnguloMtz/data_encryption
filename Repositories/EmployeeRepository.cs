@@ -34,8 +34,6 @@ namespace encrypt_server.Repositories
             return employees;
         }
 
-        
-
         public async Task Save(Employee employee)
         {
             using var connection = new NpgsqlConnection(connectionString);
@@ -44,20 +42,21 @@ namespace encrypt_server.Repositories
             using var transaction = connection.BeginTransaction();
             try
             {
-                using var addressCommand = new NpgsqlCommand();
-                addressCommand.Connection = connection;
-                addressCommand.Transaction = transaction;
-                addressCommand.CommandType = CommandType.Text;
-                addressCommand.CommandText = "INSERT INTO address (city, street_name, street_number) VALUES (@City, @StreetName, @StreetNumber) RETURNING address_id";
-
-                addressCommand.Parameters.AddWithValue("@City", employee.Address.City);
-                addressCommand.Parameters.AddWithValue("@StreetName", employee.Address.StreetName);
-                addressCommand.Parameters.AddWithValue("@StreetNumber", employee.Address.StreetNumber);
-
-                var addressId = await addressCommand.ExecuteScalarAsync();
-
-                using (var employeeCommand = new NpgsqlCommand())
+                if (employee.Id == null)
                 {
+                    using var addressCommand = new NpgsqlCommand();
+                    addressCommand.Connection = connection;
+                    addressCommand.Transaction = transaction;
+                    addressCommand.CommandType = CommandType.Text;
+                    addressCommand.CommandText = "INSERT INTO address (city, street_name, street_number) VALUES (@City, @StreetName, @StreetNumber) RETURNING address_id";
+
+                    addressCommand.Parameters.AddWithValue("@City", employee.Address.City);
+                    addressCommand.Parameters.AddWithValue("@StreetName", employee.Address.StreetName);
+                    addressCommand.Parameters.AddWithValue("@StreetNumber", employee.Address.StreetNumber);
+
+                    var addressId = await addressCommand.ExecuteScalarAsync();
+
+                    using var employeeCommand = new NpgsqlCommand();
                     employeeCommand.Connection = connection;
                     employeeCommand.Transaction = transaction;
                     employeeCommand.CommandType = CommandType.Text;
@@ -71,9 +70,39 @@ namespace encrypt_server.Repositories
 
                     await employeeCommand.ExecuteNonQueryAsync();
                 }
+                else
+                {
+                    using (var addressCommand = new NpgsqlCommand())
+                    {
+                        addressCommand.Connection = connection;
+                        addressCommand.Transaction = transaction;
+                        addressCommand.CommandType = CommandType.Text;
+                        addressCommand.CommandText = "UPDATE address SET city = @City, street_name = @StreetName, street_number = @StreetNumber WHERE address_id = (SELECT address_id FROM employee WHERE id = @Id)";
+
+                        addressCommand.Parameters.AddWithValue("@Id", employee.Id);
+                        addressCommand.Parameters.AddWithValue("@City", employee.Address.City);
+                        addressCommand.Parameters.AddWithValue("@StreetName", employee.Address.StreetName);
+                        addressCommand.Parameters.AddWithValue("@StreetNumber", employee.Address.StreetNumber);
+
+                        await addressCommand.ExecuteNonQueryAsync();
+                    }
+
+                    using var employeeCommand = new NpgsqlCommand();
+                    employeeCommand.Connection = connection;
+                    employeeCommand.Transaction = transaction;
+                    employeeCommand.CommandType = CommandType.Text;
+                    employeeCommand.CommandText = "UPDATE employee SET full_name = @FullName, email = @Email, phone = @Phone, monthly_salary_usd = @MonthlySalaryUSD WHERE id = @Id";
+
+                    employeeCommand.Parameters.AddWithValue("@Id", employee.Id);
+                    employeeCommand.Parameters.AddWithValue("@FullName", employee.FullName);
+                    employeeCommand.Parameters.AddWithValue("@Email", employee.Email);
+                    employeeCommand.Parameters.AddWithValue("@Phone", employee.Phone);
+                    employeeCommand.Parameters.AddWithValue("@MonthlySalaryUSD", employee.MonthlySalaryUSD);
+
+                    await employeeCommand.ExecuteNonQueryAsync();
+                }
 
                 transaction.Commit();
-                await Task.CompletedTask;
             }
             catch (Exception)
             {
