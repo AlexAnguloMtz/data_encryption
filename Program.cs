@@ -7,11 +7,7 @@ builder.Services.AddControllers();
 
 var connectionString = "Host=localhost;Username=admin;Password=12345;Database=business_crud";
 
-builder.Services.AddSingleton<BusinessTypeService>(new BusinessTypeService(new BusinessTypeRepository(connectionString)));
-
-builder.Services.AddSingleton<StateService>(new StateService(new StateRepository(connectionString)));
-
-builder.Services.AddSingleton<AuthService>(new AuthService(new UserRepository(connectionString)));
+builder.Services.AddSingleton<EmployeeService>(new EmployeeService(new EmployeeRepository(connectionString)));
 
 var app = builder.Build();
 
