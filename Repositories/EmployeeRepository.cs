@@ -1,19 +1,19 @@
-﻿using System.Collections.Generic;
-using System.Threading.Tasks;
-using Npgsql;
+﻿using Npgsql;
 using encrypt_server.Models;
 using System.Data;
-using System.Transactions;
 
 namespace encrypt_server.Repositories
 {
     public class EmployeeRepository
     {
         private readonly string connectionString;
+        private readonly string encryptionSecret;
 
-        public EmployeeRepository(string connectionString)
+
+        public EmployeeRepository(string connectionString, string encryptionSecret)
         {
             this.connectionString = connectionString;
+            this.encryptionSecret = encryptionSecret;
         }
 
         public async Task<List<Employee>> FindAll()
@@ -24,7 +24,26 @@ namespace encrypt_server.Repositories
             {
                 await connection.OpenAsync();
 
-                using var command = new NpgsqlCommand("SELECT * FROM employee INNER JOIN address ON employee.address_id = address.address_id", connection);
+                using var command = new NpgsqlCommand();
+                command.Connection = connection;
+                command.CommandType = CommandType.Text;
+
+                command.CommandText = @"
+                    SELECT 
+                        id,
+                        pgp_sym_decrypt(full_name::bytea, @Secret) AS full_name,
+                        pgp_sym_decrypt(email::bytea, @Secret) AS email,
+                        pgp_sym_decrypt(phone::bytea, @Secret) AS phone,
+                        monthly_salary_usd,
+                        pgp_sym_decrypt(city::bytea, @Secret) AS city,
+                        pgp_sym_decrypt(street_name::bytea, @Secret) AS street_name,
+                        pgp_sym_decrypt(street_number::bytea, @Secret) AS street_number
+                    FROM employee
+                    INNER JOIN address ON employee.address_id = address.address_id
+                ";
+
+                command.Parameters.AddWithValue("@Secret", encryptionSecret);
+
                 using var reader = await command.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
@@ -49,11 +68,19 @@ namespace encrypt_server.Repositories
                     addressCommand.Connection = connection;
                     addressCommand.Transaction = transaction;
                     addressCommand.CommandType = CommandType.Text;
-                    addressCommand.CommandText = "INSERT INTO address (city, street_name, street_number) VALUES (@City, @StreetName, @StreetNumber) RETURNING address_id";
+                    addressCommand.CommandText = @"
+                    INSERT INTO address (city, street_name, street_number)
+                    VALUES (
+                        pgp_sym_encrypt(@City, @Secret),
+                        pgp_sym_encrypt(@StreetName, @Secret),
+                        pgp_sym_encrypt(@StreetNumber, @Secret)
+                    )
+                    RETURNING address_id";
 
                     addressCommand.Parameters.AddWithValue("@City", employee.Address.City);
                     addressCommand.Parameters.AddWithValue("@StreetName", employee.Address.StreetName);
                     addressCommand.Parameters.AddWithValue("@StreetNumber", employee.Address.StreetNumber);
+                    addressCommand.Parameters.AddWithValue("@Secret", encryptionSecret);
 
                     var addressId = await addressCommand.ExecuteScalarAsync();
 
@@ -61,13 +88,22 @@ namespace encrypt_server.Repositories
                     employeeCommand.Connection = connection;
                     employeeCommand.Transaction = transaction;
                     employeeCommand.CommandType = CommandType.Text;
-                    employeeCommand.CommandText = "INSERT INTO employee (full_name, email, phone, address_id, monthly_salary_usd) VALUES (@FullName, @Email, @Phone, @AddressId, @MonthlySalaryUSD)";
+                    employeeCommand.CommandText = @"
+                    INSERT INTO employee (full_name, email, phone, address_id, monthly_salary_usd) 
+                    VALUES (
+                        pgp_sym_encrypt(@FullName, @Secret),
+                        pgp_sym_encrypt(@Email, @Secret), 
+                        pgp_sym_encrypt(@Phone, @Secret),
+                        @AddressId, 
+                        @MonthlySalaryUSD
+                    )";
 
                     employeeCommand.Parameters.AddWithValue("@FullName", employee.FullName);
                     employeeCommand.Parameters.AddWithValue("@Email", employee.Email);
                     employeeCommand.Parameters.AddWithValue("@Phone", employee.Phone);
                     employeeCommand.Parameters.AddWithValue("@AddressId", addressId);
                     employeeCommand.Parameters.AddWithValue("@MonthlySalaryUSD", employee.MonthlySalaryUSD);
+                    employeeCommand.Parameters.AddWithValue("@Secret", encryptionSecret);
 
                     await employeeCommand.ExecuteNonQueryAsync();
                 }
@@ -78,12 +114,20 @@ namespace encrypt_server.Repositories
                         addressCommand.Connection = connection;
                         addressCommand.Transaction = transaction;
                         addressCommand.CommandType = CommandType.Text;
-                        addressCommand.CommandText = "UPDATE address SET city = @City, street_name = @StreetName, street_number = @StreetNumber WHERE address_id = (SELECT address_id FROM employee WHERE id = @Id)";
+                        addressCommand.CommandText = @"
+                        UPDATE address 
+                        SET 
+                            city = pgp_sym_encrypt(@City, @Secret), 
+                            street_name = pgp_sym_encrypt(@StreetName, @Secret), 
+                            street_number = pgp_sym_encrypt(@StreetNumber, @Secret)
+                            WHERE address_id = (SELECT address_id FROM employee WHERE id = @Id)";
 
                         addressCommand.Parameters.AddWithValue("@Id", employee.Id);
                         addressCommand.Parameters.AddWithValue("@City", employee.Address.City);
                         addressCommand.Parameters.AddWithValue("@StreetName", employee.Address.StreetName);
                         addressCommand.Parameters.AddWithValue("@StreetNumber", employee.Address.StreetNumber);
+                        addressCommand.Parameters.AddWithValue("@Secret", encryptionSecret);
+
 
                         await addressCommand.ExecuteNonQueryAsync();
                     }
@@ -92,13 +136,21 @@ namespace encrypt_server.Repositories
                     employeeCommand.Connection = connection;
                     employeeCommand.Transaction = transaction;
                     employeeCommand.CommandType = CommandType.Text;
-                    employeeCommand.CommandText = "UPDATE employee SET full_name = @FullName, email = @Email, phone = @Phone, monthly_salary_usd = @MonthlySalaryUSD WHERE id = @Id";
+                    employeeCommand.CommandText = @"
+                    UPDATE employee
+                    SET
+                        full_name = pgp_sym_encrypt(@FullName, @Secret),
+                        email = pgp_sym_encrypt(@Email, @Secret),
+                        phone = pgp_sym_encrypt(@Phone, @Secret),
+                        monthly_salary_usd = @MonthlySalaryUSD
+                    WHERE id = @Id";
 
                     employeeCommand.Parameters.AddWithValue("@Id", employee.Id);
                     employeeCommand.Parameters.AddWithValue("@FullName", employee.FullName);
                     employeeCommand.Parameters.AddWithValue("@Email", employee.Email);
                     employeeCommand.Parameters.AddWithValue("@Phone", employee.Phone);
                     employeeCommand.Parameters.AddWithValue("@MonthlySalaryUSD", employee.MonthlySalaryUSD);
+                    employeeCommand.Parameters.AddWithValue("@Secret", encryptionSecret);
 
                     await employeeCommand.ExecuteNonQueryAsync();
                 }
@@ -120,9 +172,22 @@ namespace encrypt_server.Repositories
             using var command = new NpgsqlCommand();
             command.Connection = connection;
             command.CommandType = CommandType.Text;
-            command.CommandText = "SELECT * FROM employee INNER JOIN address ON employee.address_id = address.address_id WHERE employee.id = @Id";
+            command.CommandText = @"
+                SELECT 
+                    id,
+                    pgp_sym_decrypt(full_name::bytea, @Secret) AS full_name,
+                    pgp_sym_decrypt(email::bytea, @Secret) AS email,
+                    pgp_sym_decrypt(phone::bytea, @Secret) AS phone,
+                    monthly_salary_usd,
+                    pgp_sym_decrypt(city::bytea, @Secret) AS city,
+                    pgp_sym_decrypt(street_name::bytea, @Secret) AS street_name,
+                    pgp_sym_decrypt(street_number::bytea, @Secret) AS street_number
+                FROM employee
+                INNER JOIN address ON employee.address_id = address.address_id WHERE employee.id = @Id
+            ";
 
             command.Parameters.AddWithValue("@Id", id);
+            command.Parameters.AddWithValue("@Secret", encryptionSecret);
 
             using var reader = await command.ExecuteReaderAsync();
             if (await reader.ReadAsync())
@@ -175,14 +240,12 @@ namespace encrypt_server.Repositories
 
         private async Task<int?> GetAddressIdAsync(NpgsqlCommand command)
         {
-            using (var reader = await command.ExecuteReaderAsync())
+            using var reader = await command.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
             {
-                if (await reader.ReadAsync())
-                {
-                    return reader.GetInt32(reader.GetOrdinal("address_id"));
-                }
-                return null;
+                return reader.GetInt32(reader.GetOrdinal("address_id"));
             }
+            return null;
         }
 
         private Employee ReadEmployee(NpgsqlDataReader reader)

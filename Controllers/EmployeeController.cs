@@ -23,9 +23,9 @@ namespace encrypt_server.Controllers
             {
                 return Ok(await service.GetAll());
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                return StatusCode(500, "Could not find employees");
+                return StatusCode(500, e.GetType().FullName + " " + e.Message);
             }
         }
 
@@ -36,9 +36,9 @@ namespace encrypt_server.Controllers
             {
                 return Ok(await service.GetById(id));
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                return StatusCode(500, $"Could not find employee with id = '{id}'");
+                return StatusCode(500, e.GetType().FullName + " " + e.Message);
             }
         }
 
@@ -51,9 +51,9 @@ namespace encrypt_server.Controllers
                 await service.Save(request);
                 return Ok();
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                return StatusCode(500, "Could not save employee");
+                return StatusCode(500, e.GetType().FullName + " " + e.Message);
             }
         }
 
@@ -65,9 +65,9 @@ namespace encrypt_server.Controllers
                 await service.Update(id, request);
                 return Ok();
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                return StatusCode(500, "Could not update employee");
+                return StatusCode(500, e.GetType().FullName + " " + e.Message);
             }
         }
 
@@ -79,9 +79,9 @@ namespace encrypt_server.Controllers
                 await service.DeleteById(id);
                 return Ok();
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                return StatusCode(500, "Could not delete employee");
+                return StatusCode(500, e.GetType().FullName + " " + e.Message);
             }
         }
 
