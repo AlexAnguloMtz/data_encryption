@@ -17,7 +17,7 @@ Los datos de los empleados son encriptados con PostgreSQL mediante las siguiente
 
 ## Encriptar datos al insertar empleado
 A continuación se muestra el código SQL para encriptar e insertar un empleado y su domicilio.
-@Secret es inyectado como variable de entorno y las demás variables son populadas con C# previo a realizar la inserción.
+Con ayuda de C# se establece el valor de todas las variables que inician con '@' para evitar inyecciones de SQL.
 
 ```sql
 INSERT INTO employee (full_name, email, phone, address_id, monthly_salary_usd) 
