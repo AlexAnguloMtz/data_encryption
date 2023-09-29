@@ -6,6 +6,5 @@ CRUD de Empleados con datos encriptados usando el algoritmo AES a nivel BDD con 
 # Arquitectura
 - Front end: NextJS + Typescript alojado en Vercel
 - Back end: ASP.NET Core + PostgreSQL alojado en Digital Ocean
-![Alt Text](hello.png)
-
+![Alt Text](architecture.png)
 
