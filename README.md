@@ -35,6 +35,7 @@ VALUES (
     pgp_sym_encrypt(@StreetName, @Secret),
     pgp_sym_encrypt(@StreetNumber, @Secret)
 );
+```
 
 ## Desencriptar datos al leer un empleado
 A continuación se muestra el código SQL para desencriptar y leer un empleado y su domicilio.
@@ -51,6 +52,7 @@ SELECT
     pgp_sym_decrypt(street_number::bytea, @Secret) AS street_number
 FROM employee
 INNER JOIN address ON employee.address_id = address.address_id;
+```
 
 # Repositorio del Front End
 Enlace al repositorio del código del front end:
