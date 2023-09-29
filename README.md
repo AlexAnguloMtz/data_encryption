@@ -39,6 +39,7 @@ VALUES (
 
 ## Desencriptar datos al leer un empleado
 A continuación se muestra el código SQL para desencriptar y leer un empleado y su domicilio.
+Nuevamente, con ayuda de C# se establece el valor de las variables que inician con '@' para evitar inyecciones de SQL.
 
 ```sql
 SELECT 
